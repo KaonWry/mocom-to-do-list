@@ -42,6 +42,12 @@ class QuestRouletteApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+        ),
       ),
       home: const MainGameShell(),
     );
@@ -484,6 +490,8 @@ class _MainGameShellState extends State<MainGameShell> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         title: const Text(
           'Quest Roulette',
           style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.1),
