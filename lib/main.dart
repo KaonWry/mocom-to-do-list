@@ -490,6 +490,7 @@ class _MainGameShellState extends State<MainGameShell> {
         ),
         actions: [
           Container(
+            height: 36,
             margin: const EdgeInsets.only(right: 8, top: 10, bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
@@ -497,26 +498,30 @@ class _MainGameShellState extends State<MainGameShell> {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
             ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.monetization_on,
-                  size: 15,
-                  color: Colors.amber,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '$_gold G',
-                  style: const TextStyle(
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.monetization_on,
+                    size: 15,
                     color: Colors.amber,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Text(
+                    '$_gold G',
+                    style: const TextStyle(
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           Container(
+            height: 36,
             margin: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
