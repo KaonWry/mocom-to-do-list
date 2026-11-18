@@ -159,31 +159,44 @@ class _AddQuestDialogState extends State<AddQuestDialog> {
                         style: TextStyle(fontSize: 13, color: Colors.white70),
                       ),
                       const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: QuestDifficulty.values.map((diff) {
-                          final isSelected = _selectedDifficulty == diff;
-                          return ChoiceChip(
-                            label: Text(
-                              '${diff.label} (${diff.damage} DMG | -${diff.penaltyGold}G)',
-                            ),
-                            selected: isSelected,
-                            selectedColor: diff.color.withValues(alpha: 0.25),
-                            labelStyle: TextStyle(
-                              fontSize: 12,
-                              color: isSelected ? diff.color : Colors.white70,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                            onSelected: (_) {
-                              setState(() {
-                                _selectedDifficulty = diff;
-                              });
-                            },
-                          );
-                        }).toList(),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          splashColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                          splashFactory: NoSplash.splashFactory,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: QuestDifficulty.values.map((diff) {
+                            final isSelected = _selectedDifficulty == diff;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: ChoiceChip(
+                                label: SizedBox(
+                                  width: double.infinity,
+                                  child: Text(
+                                    '${diff.label} (${diff.damage} DMG | -${diff.penaltyGold}G)',
+                                  ),
+                                ),
+                                selected: isSelected,
+                                selectedColor: diff.color.withValues(alpha: 0.25),
+                                labelStyle: TextStyle(
+                                  fontSize: 12,
+                                  color: isSelected ? diff.color : Colors.white70,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                                pressElevation: 0,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _selectedDifficulty = diff;
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       const Text(
