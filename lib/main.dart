@@ -1185,9 +1185,17 @@ class _MainGameShellState extends State<MainGameShell> {
           });
         },
         destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.sports_kabaddi_outlined),
-            selectedIcon: Icon(Icons.sports_kabaddi, color: Color(0xFFFFB703)),
+          NavigationDestination(
+            icon: Badge(
+              isLabelVisible: activeQuests.isNotEmpty,
+              label: Text('${activeQuests.length}'),
+              child: const Icon(Icons.sports_kabaddi_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: activeQuests.isNotEmpty,
+              label: Text('${activeQuests.length}'),
+              child: const Icon(Icons.sports_kabaddi, color: Color(0xFFFFB703)),
+            ),
             label: 'Arena',
           ),
           const NavigationDestination(
@@ -1195,13 +1203,9 @@ class _MainGameShellState extends State<MainGameShell> {
             selectedIcon: Icon(Icons.storefront, color: Color(0xFFFFB703)),
             label: 'Shop',
           ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: historyQuests.isNotEmpty,
-              label: Text('${historyQuests.length}'),
-              child: const Icon(Icons.history_outlined),
-            ),
-            selectedIcon: const Icon(Icons.history, color: Color(0xFFFFB703)),
+          const NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history, color: Color(0xFFFFB703)),
             label: 'History',
           ),
         ],

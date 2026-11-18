@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mocom_to_do_list/main.dart';
 
 void main() {
-  testWidgets('QuestRouletteApp loads and displays title', (WidgetTester tester) async {
+  testWidgets('QuestRouletteApp loads and displays title and active badge count', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(const QuestRouletteApp());
@@ -12,6 +12,10 @@ void main() {
 
     expect(find.text('Quest Roulette'), findsOneWidget);
     expect(find.text('QUEST AKTIF'), findsOneWidget);
+
+    // Initial default quests has 3 active quests, verify badge shows 3
+    final badgeFinder = find.widgetWithText(Badge, '3');
+    expect(badgeFinder, findsWidgets);
   });
 
   testWidgets('Opens centered Add Quest dialog and saves a new quest', (WidgetTester tester) async {
@@ -40,5 +44,8 @@ void main() {
     // Dialog should be dismissed and quest added to list
     expect(find.text('Tambah Quest Baru'), findsNothing);
     expect(find.text('Test Centered Quest'), findsOneWidget);
+
+    // Now badge count should be 4
+    expect(find.widgetWithText(Badge, '4'), findsWidgets);
   });
 }
