@@ -114,6 +114,7 @@ void main() {
         isRageActive: true,
         isWisdomActive: false,
         lockedQuestId: 'custom-1',
+        totalDamageDealt: 750,
       );
 
       final saved = await storage.saveGameState(customState);
@@ -131,6 +132,7 @@ void main() {
       expect(loaded.isRageActive, isTrue);
       expect(loaded.isWisdomActive, isFalse);
       expect(loaded.lockedQuestId, 'custom-1');
+      expect(loaded.totalDamageDealt, 750);
     });
 
     test('Corrupted data gracefully falls back to defaults without crash', () async {

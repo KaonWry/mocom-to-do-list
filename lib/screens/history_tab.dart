@@ -4,11 +4,13 @@ import '../utils/formatters.dart';
 
 class HistoryTab extends StatelessWidget {
   final List<Quest> historyQuests;
+  final int totalDamageDealt;
   final VoidCallback onClearHistory;
 
   const HistoryTab({
     super.key,
     required this.historyQuests,
+    required this.totalDamageDealt,
     required this.onClearHistory,
   });
 
@@ -16,12 +18,6 @@ class HistoryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final completedCount = historyQuests.where((q) => q.isDone).length;
     final failedCount = historyQuests.where((q) => q.isFailed).length;
-    final totalDamageDealt = historyQuests
-        .where((q) => q.isDone)
-        .fold<int>(
-          0,
-          (sum, item) => sum + (item.damageDealt ?? item.difficulty.damage),
-        );
 
     return Padding(
       padding: const EdgeInsets.all(16),

@@ -76,6 +76,7 @@ class _MainGameShellState extends State<MainGameShell> {
   int _playerLevel = 1;
   int _playerXp = 0;
   int _gold = 50;
+  int _totalDamageDealt = 0;
 
   // Equipment & Support Buff State
   int _weaponLevel = 0;
@@ -112,6 +113,13 @@ class _MainGameShellState extends State<MainGameShell> {
     final loadedQuests = await _storageService.loadQuests();
     final loadedState = await _storageService.loadGameState();
 
+    int totalDmg = loadedState.totalDamageDealt;
+    if (totalDmg == 0) {
+      totalDmg = loadedQuests
+          .where((q) => q.isDone)
+          .fold<int>(0, (sum, q) => sum + (q.damageDealt ?? q.difficulty.damage));
+    }
+
     if (!mounted) return;
     setState(() {
       _quests = loadedQuests;
@@ -126,6 +134,7 @@ class _MainGameShellState extends State<MainGameShell> {
       _isRageActive = loadedState.isRageActive;
       _isWisdomActive = loadedState.isWisdomActive;
       _lockedQuestId = loadedState.lockedQuestId;
+      _totalDamageDealt = totalDmg;
       _isLoading = false;
     });
   }
@@ -150,6 +159,7 @@ class _MainGameShellState extends State<MainGameShell> {
         isRageActive: _isRageActive,
         isWisdomActive: _isWisdomActive,
         lockedQuestId: _lockedQuestId,
+        totalDamageDealt: _totalDamageDealt,
       ),
     );
   }
@@ -337,6 +347,7 @@ class _MainGameShellState extends State<MainGameShell> {
       }
 
       _bossCurrentHp = max(0, _bossCurrentHp - finalDamage);
+      _totalDamageDealt += finalDamage;
     });
     _saveQuests();
     _saveGameState();
@@ -445,6 +456,7 @@ class _MainGameShellState extends State<MainGameShell> {
     setState(() {
       _gold -= cost;
       _bossCurrentHp = max(0, _bossCurrentHp - scrollDamage);
+      _totalDamageDealt += scrollDamage;
     });
     _saveGameState();
 
@@ -597,6 +609,7 @@ class _MainGameShellState extends State<MainGameShell> {
           ),
           HistoryTab(
             historyQuests: historyQuests,
+            totalDamageDealt: _totalDamageDealt,
             onClearHistory: () {
               setState(() {
                 _quests.removeWhere((q) => !q.isActive);
