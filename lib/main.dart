@@ -209,22 +209,17 @@ class _MainGameShellState extends State<MainGameShell> {
       return;
     }
 
-    int totalPenalty = 0;
     for (final quest in expiredQuests) {
       quest.isFailed = true;
       quest.finishedAt = now;
-      quest.goldLost = quest.difficulty.penaltyGold;
-      totalPenalty += quest.difficulty.penaltyGold;
 
       if (_lockedQuestId == quest.id) {
         _lockedQuestId = null;
       }
     }
 
-    final int actualGoldDeducted = min(_gold, totalPenalty);
-
     setState(() {
-      _gold = max(0, _gold - totalPenalty);
+      _bossCurrentHp = _bossMaxHp;
     });
     _saveQuests();
     _saveGameState();
@@ -235,8 +230,7 @@ class _MainGameShellState extends State<MainGameShell> {
       context,
       expiredQuests: expiredQuests,
       bossName: _currentBoss.name,
-      actualGoldDeducted: actualGoldDeducted,
-      remainingGold: _gold,
+      bossMaxHp: _bossMaxHp,
     );
   }
 

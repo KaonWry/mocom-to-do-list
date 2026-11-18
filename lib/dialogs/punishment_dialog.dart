@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+
 import '../models/quest.dart';
 
 Future<void> showPunishmentDialog(
   BuildContext context, {
   required List<Quest> expiredQuests,
   required String bossName,
-  required int actualGoldDeducted,
-  required int remainingGold,
+  required int bossMaxHp,
 }) {
   return showDialog<void>(
     context: context,
@@ -19,7 +19,10 @@ Future<void> showPunishmentDialog(
           SizedBox(width: 10),
           Text(
             'PUNISHMENT!',
-            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Colors.redAccent,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -28,7 +31,7 @@ Future<void> showPunishmentDialog(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${expiredQuests.length} quest telah melewati tenggat waktu! $bossName menyerang balik saat kamu lengah:',
+            '${expiredQuests.length} quest telah melewati tenggat waktu! $bossName memulihkan kekuatannya saat kamu lengah:',
             style: const TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 12),
@@ -36,7 +39,7 @@ Future<void> showPunishmentDialog(
             (q) => Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Text(
-                '• ${q.title} (-${q.difficulty.penaltyGold} G)',
+                '• ${q.title}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -56,13 +59,11 @@ Future<void> showPunishmentDialog(
             ),
             child: Row(
               children: [
-                const Icon(Icons.money_off, color: Colors.redAccent),
+                const Icon(Icons.favorite, color: Colors.redAccent),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    actualGoldDeducted > 0
-                        ? 'Gold Dirampas: -$actualGoldDeducted Gold (Sisa: $remainingGold G)'
-                        : 'Gold kamu sudah habis (0 G)!',
+                    'HP $bossName kembali penuh ($bossMaxHp/$bossMaxHp HP)!',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.redAccent,

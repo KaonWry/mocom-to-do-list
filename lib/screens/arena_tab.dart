@@ -168,13 +168,16 @@ class ArenaTab extends StatelessWidget {
                                     color: quest.difficulty.color,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    '${quest.difficulty.label} • $calculatedDmg DMG',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isLockedTarget
-                                          ? const Color(0xFFFFB703)
-                                          : quest.difficulty.color,
+                                  Expanded(
+                                    child: Text(
+                                      '${quest.difficulty.label} • $calculatedDmg DMG',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isLockedTarget
+                                            ? const Color(0xFFFFB703)
+                                            : quest.difficulty.color,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -190,16 +193,19 @@ class ArenaTab extends StatelessWidget {
                                         : Colors.white54,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    'Tenggat: ${formatRemainingTime(quest.deadline)} (Penalti -${quest.difficulty.penaltyGold}G)',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: isUrgent
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      color: isUrgent
-                                          ? Colors.redAccent
-                                          : Colors.white54,
+                                  Expanded(
+                                    child: Text(
+                                      'Tenggat: ${formatRemainingTime(quest.deadline)} (Penalti: Reset HP Boss)',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: isUrgent
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        color: isUrgent
+                                            ? Colors.redAccent
+                                            : Colors.white54,
+                                      ),
                                     ),
                                   ),
                                 ],

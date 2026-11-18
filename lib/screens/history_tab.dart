@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/quest.dart';
 import '../utils/formatters.dart';
 
@@ -148,7 +149,7 @@ class HistoryTab extends StatelessWidget {
                           ),
                           subtitle: Text(
                             isFailed
-                                ? 'GAGAL (Lewat Tenggat) • Penalti -${quest.goldLost ?? quest.difficulty.penaltyGold} Gold\nWaktu: ${formatDateTime(quest.finishedAt)}'
+                                ? 'GAGAL (Lewat Tenggat) • Penalti: Reset HP Boss\nWaktu: ${formatDateTime(quest.finishedAt)}'
                                 : '${quest.difficulty.label} • -${quest.damageDealt ?? quest.difficulty.damage} DMG\nSelesai: ${formatDateTime(quest.finishedAt)}',
                             style: TextStyle(
                               fontSize: 11,

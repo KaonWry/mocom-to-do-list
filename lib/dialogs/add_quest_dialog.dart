@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/quest.dart';
 import '../utils/formatters.dart';
 
@@ -89,13 +90,8 @@ class _AddQuestDialogState extends State<AddQuestDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: const Color(0xFF1C202B),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      insetPadding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 24,
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
         child: Padding(
@@ -109,11 +105,7 @@ class _AddQuestDialogState extends State<AddQuestDialog> {
                 children: [
                   const Row(
                     children: [
-                      Icon(
-                        Icons.add_task,
-                        color: Color(0xFFFFB703),
-                        size: 22,
-                      ),
+                      Icon(Icons.add_task, color: Color(0xFFFFB703), size: 22),
                       SizedBox(width: 8),
                       Text(
                         'Tambah Quest Baru',
@@ -175,14 +167,18 @@ class _AddQuestDialogState extends State<AddQuestDialog> {
                                 label: SizedBox(
                                   width: double.infinity,
                                   child: Text(
-                                    '${diff.label} (${diff.damage} DMG | -${diff.penaltyGold}G)',
+                                    '${diff.label} (${diff.damage} DMG | Penalti: Reset HP Boss)',
                                   ),
                                 ),
                                 selected: isSelected,
-                                selectedColor: diff.color.withValues(alpha: 0.25),
+                                selectedColor: diff.color.withValues(
+                                  alpha: 0.25,
+                                ),
                                 labelStyle: TextStyle(
                                   fontSize: 12,
-                                  color: isSelected ? diff.color : Colors.white70,
+                                  color: isSelected
+                                      ? diff.color
+                                      : Colors.white70,
                                   fontWeight: isSelected
                                       ? FontWeight.bold
                                       : FontWeight.normal,
@@ -215,13 +211,13 @@ class _AddQuestDialogState extends State<AddQuestDialog> {
                               color: Colors.redAccent,
                             ),
                             label: const Text(
-                              '+1 Menit (Demo)',
+                              '+10 detik (DEBUG)',
                               style: TextStyle(fontSize: 12),
                             ),
                             onPressed: () {
                               setState(() {
                                 _selectedDeadline = DateTime.now().add(
-                                  const Duration(minutes: 1),
+                                  const Duration(seconds: 10),
                                 );
                               });
                             },
@@ -280,9 +276,8 @@ class _AddQuestDialogState extends State<AddQuestDialog> {
                             color: const Color(0xFF11131A),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: const Color(
-                                0xFFFFB703,
-                              ).withValues(alpha: 0.4),
+                              color: const Color(0xFFFFB703)
+                                  .withValues(alpha: 0.4),
                             ),
                           ),
                           child: Row(
