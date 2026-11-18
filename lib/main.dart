@@ -538,7 +538,7 @@ class _MainGameShellState extends State<MainGameShell> {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         title: const Text(
-          'Quest Roulette',
+          'Quest Rush',
           style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.1),
         ),
         actions: [
