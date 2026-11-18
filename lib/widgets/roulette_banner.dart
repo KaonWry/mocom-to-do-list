@@ -18,12 +18,7 @@ class RouletteBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFFFB703).withValues(alpha: 0.18),
-            const Color(0xFF1C202B),
-          ],
-        ),
+        color: const Color(0xFFFFB703).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFFFB703).withValues(alpha: 0.4),
