@@ -715,19 +715,14 @@ class _MainGameShellState extends State<MainGameShell> {
     }
   }
 
-  // Modal Tambah Quest + Pengaturan Tenggat Waktu
-  void _showAddQuestSheet() {
+  // Dialog Tambah Quest + Pengaturan Tenggat Waktu (Tampil di Tengah Layar)
+  void _showAddQuestDialog() {
     final titleController = TextEditingController();
     QuestDifficulty selectedDifficulty = QuestDifficulty.medium;
     DateTime selectedDeadline = DateTime.now().add(const Duration(hours: 3));
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF1C202B),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -767,188 +762,275 @@ class _MainGameShellState extends State<MainGameShell> {
               });
             }
 
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            return Dialog(
+              backgroundColor: const Color(0xFF1C202B),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Tambah Quest Baru',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: titleController,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: 'Contoh: Selesaikan bab 2 skripsi...',
-                        filled: true,
-                        fillColor: const Color(0xFF11131A),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Tingkat Kesulitan (Damage vs Punishment):',
-                      style: TextStyle(fontSize: 13, color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: QuestDifficulty.values.map((diff) {
-                        final isSelected = selectedDifficulty == diff;
-                        return ChoiceChip(
-                          label: Text(
-                            '${diff.label} (${diff.damage} DMG | -${diff.penaltyGold}G)',
-                          ),
-                          selected: isSelected,
-                          selectedColor: diff.color.withValues(alpha: 0.25),
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            color: isSelected ? diff.color : Colors.white70,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                          onSelected: (_) {
-                            setModalState(() {
-                              selectedDifficulty = diff;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Tenggat Waktu (Deadline):',
-                      style: TextStyle(fontSize: 13, color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        ActionChip(
-                          avatar: const Icon(Icons.timer, size: 16, color: Colors.redAccent),
-                          label: const Text('+1 Menit (Demo)', style: TextStyle(fontSize: 12)),
-                          onPressed: () {
-                            setModalState(() {
-                              selectedDeadline = DateTime.now().add(const Duration(minutes: 1));
-                            });
-                          },
-                        ),
-                        ActionChip(
-                          label: const Text('+1 Jam', style: TextStyle(fontSize: 12)),
-                          onPressed: () {
-                            setModalState(() {
-                              selectedDeadline = DateTime.now().add(const Duration(hours: 1));
-                            });
-                          },
-                        ),
-                        ActionChip(
-                          label: const Text('+3 Jam', style: TextStyle(fontSize: 12)),
-                          onPressed: () {
-                            setModalState(() {
-                              selectedDeadline = DateTime.now().add(const Duration(hours: 3));
-                            });
-                          },
-                        ),
-                        ActionChip(
-                          label: const Text('Besok', style: TextStyle(fontSize: 12)),
-                          onPressed: () {
-                            setModalState(() {
-                              selectedDeadline = DateTime.now().add(const Duration(days: 1));
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    InkWell(
-                      onTap: pickCustomDateTime,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF11131A),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFFFB703).withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.event_available,
-                              color: Color(0xFFFFB703),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Batas: ${_formatDateTime(selectedDeadline)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 24,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.add_task,
+                                color: Color(0xFFFFB703),
+                                size: 22,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Tambah Quest Baru',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                            const Text(
-                              'Ubah',
-                              style: TextStyle(
-                                color: Color(0xFFFFB703),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                            ],
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, size: 20),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            color: Colors.white54,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextField(
+                                controller: titleController,
+                                autofocus: true,
+                                decoration: InputDecoration(
+                                  hintText: 'Contoh: Selesaikan bab 2 skripsi...',
+                                  filled: true,
+                                  fillColor: const Color(0xFF11131A),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 14),
+                              const Text(
+                                'Tingkat Kesulitan (Damage vs Punishment):',
+                                style: TextStyle(fontSize: 13, color: Colors.white70),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: QuestDifficulty.values.map((diff) {
+                                  final isSelected = selectedDifficulty == diff;
+                                  return ChoiceChip(
+                                    label: Text(
+                                      '${diff.label} (${diff.damage} DMG | -${diff.penaltyGold}G)',
+                                    ),
+                                    selected: isSelected,
+                                    selectedColor: diff.color.withValues(alpha: 0.25),
+                                    labelStyle: TextStyle(
+                                      fontSize: 12,
+                                      color: isSelected ? diff.color : Colors.white70,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                    onSelected: (_) {
+                                      setModalState(() {
+                                        selectedDifficulty = diff;
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text(
+                                'Tenggat Waktu (Deadline):',
+                                style: TextStyle(fontSize: 13, color: Colors.white70),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: [
+                                  ActionChip(
+                                    avatar: const Icon(
+                                      Icons.timer,
+                                      size: 16,
+                                      color: Colors.redAccent,
+                                    ),
+                                    label: const Text(
+                                      '+1 Menit (Demo)',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    onPressed: () {
+                                      setModalState(() {
+                                        selectedDeadline = DateTime.now().add(
+                                          const Duration(minutes: 1),
+                                        );
+                                      });
+                                    },
+                                  ),
+                                  ActionChip(
+                                    label: const Text(
+                                      '+1 Jam',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    onPressed: () {
+                                      setModalState(() {
+                                        selectedDeadline = DateTime.now().add(
+                                          const Duration(hours: 1),
+                                        );
+                                      });
+                                    },
+                                  ),
+                                  ActionChip(
+                                    label: const Text(
+                                      '+3 Jam',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    onPressed: () {
+                                      setModalState(() {
+                                        selectedDeadline = DateTime.now().add(
+                                          const Duration(hours: 3),
+                                        );
+                                      });
+                                    },
+                                  ),
+                                  ActionChip(
+                                    label: const Text(
+                                      'Besok',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    onPressed: () {
+                                      setModalState(() {
+                                        selectedDeadline = DateTime.now().add(
+                                          const Duration(days: 1),
+                                        );
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              InkWell(
+                                onTap: pickCustomDateTime,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF11131A),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFFFFB703,
+                                      ).withValues(alpha: 0.4),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.event_available,
+                                        color: Color(0xFFFFB703),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Batas: ${_formatDateTime(selectedDeadline)}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                      const Text(
+                                        'Ubah',
+                                        style: TextStyle(
+                                          color: Color(0xFFFFB703),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          final text = titleController.text.trim();
-                          if (text.isEmpty) return;
-
-                          setState(() {
-                            _quests.insert(
-                              0,
-                              Quest(
-                                id: DateTime.now()
-                                    .millisecondsSinceEpoch
-                                    .toString(),
-                                title: text,
-                                difficulty: selectedDifficulty,
-                                deadline: selectedDeadline,
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white60,
                               ),
-                            );
-                          });
-                          _saveQuests();
-                          Navigator.pop(context);
-                        },
-                        icon: const Icon(Icons.add_task),
-                        label: const Text('Simpan Quest'),
+                              child: const Text('Batal'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                final text = titleController.text.trim();
+                                if (text.isEmpty) return;
+
+                                setState(() {
+                                  _quests.insert(
+                                    0,
+                                    Quest(
+                                      id: DateTime.now()
+                                          .millisecondsSinceEpoch
+                                          .toString(),
+                                      title: text,
+                                      difficulty: selectedDifficulty,
+                                      deadline: selectedDeadline,
+                                    ),
+                                  );
+                                });
+                                _saveQuests();
+                                Navigator.pop(context);
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFFFFB703),
+                                foregroundColor: Colors.black,
+                              ),
+                              icon: const Icon(Icons.add_task),
+                              label: const Text(
+                                'Simpan Quest',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1083,7 +1165,7 @@ class _MainGameShellState extends State<MainGameShell> {
       ),
       floatingActionButton: _selectedTabIndex == 0
           ? FloatingActionButton.extended(
-              onPressed: _showAddQuestSheet,
+              onPressed: _showAddQuestDialog,
               backgroundColor: const Color(0xFFFFB703),
               foregroundColor: Colors.black,
               icon: const Icon(Icons.add),
