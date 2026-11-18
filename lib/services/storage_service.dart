@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/quest.dart';
 
 class GameStateData {
@@ -14,6 +16,7 @@ class GameStateData {
   final bool isRageActive;
   final bool isWisdomActive;
   final String? lockedQuestId;
+  final int critRollsUsed;
   final int totalDamageDealt;
 
   const GameStateData({
@@ -28,6 +31,7 @@ class GameStateData {
     this.isRageActive = false,
     this.isWisdomActive = false,
     this.lockedQuestId,
+    this.critRollsUsed = 0,
     this.totalDamageDealt = 0,
   });
 
@@ -44,6 +48,7 @@ class GameStateData {
       'isRageActive': isRageActive,
       'isWisdomActive': isWisdomActive,
       'lockedQuestId': lockedQuestId,
+      'critRollsUsed': critRollsUsed,
       'totalDamageDealt': totalDamageDealt,
     };
   }
@@ -63,6 +68,7 @@ class GameStateData {
       isRageActive: map['isRageActive'] as bool? ?? false,
       isWisdomActive: map['isWisdomActive'] as bool? ?? false,
       lockedQuestId: map['lockedQuestId'] as String?,
+      critRollsUsed: map['critRollsUsed'] as int? ?? 0,
       totalDamageDealt: map['totalDamageDealt'] as int? ?? 0,
     );
   }

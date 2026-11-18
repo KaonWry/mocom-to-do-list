@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/boss_profile.dart';
 import '../models/quest.dart';
 import '../utils/formatters.dart';
@@ -19,6 +20,8 @@ class ArenaTab extends StatelessWidget {
   final String? lockedQuestId;
   final String? spinningHighlightId;
   final bool isSpinning;
+  final int critRollsUsed;
+  final int maxCritRolls;
   final VoidCallback onSpinRoulette;
   final ValueChanged<Quest> onCompleteQuest;
   final ValueChanged<Quest> onDeleteQuest;
@@ -39,6 +42,8 @@ class ArenaTab extends StatelessWidget {
     required this.lockedQuestId,
     required this.spinningHighlightId,
     required this.isSpinning,
+    required this.critRollsUsed,
+    this.maxCritRolls = 2,
     required this.onSpinRoulette,
     required this.onCompleteQuest,
     required this.onDeleteQuest,
@@ -48,9 +53,9 @@ class ArenaTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lockedQuest = activeQuests.cast<Quest?>().firstWhere(
-          (q) => q?.id == lockedQuestId,
-          orElse: () => null,
-        );
+      (q) => q?.id == lockedQuestId,
+      orElse: () => null,
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -71,6 +76,8 @@ class ArenaTab extends StatelessWidget {
           RouletteBanner(
             lockedQuest: lockedQuest,
             isSpinning: isSpinning,
+            critRollsUsed: critRollsUsed,
+            maxCritRolls: maxCritRolls,
             onSpin: onSpinRoulette,
           ),
           const SizedBox(height: 14),

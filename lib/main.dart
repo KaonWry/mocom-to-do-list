@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import 'dialogs/add_quest_dialog.dart';
@@ -85,7 +86,9 @@ class _MainGameShellState extends State<MainGameShell> {
   bool _isWisdomActive = false;
 
   // Roulette & Timer State
+  static const int _maxCritRollsPerBoss = 2;
   String? _lockedQuestId;
+  int _critRollsUsed = 0;
   String? _spinningHighlightId;
   bool _isSpinning = false;
   Timer? _spinTimer;
@@ -117,7 +120,10 @@ class _MainGameShellState extends State<MainGameShell> {
     if (totalDmg == 0) {
       totalDmg = loadedQuests
           .where((q) => q.isDone)
-          .fold<int>(0, (sum, q) => sum + (q.damageDealt ?? q.difficulty.damage));
+          .fold<int>(
+            0,
+            (sum, q) => sum + (q.damageDealt ?? q.difficulty.damage),
+          );
     }
 
     if (!mounted) return;
@@ -133,7 +139,13 @@ class _MainGameShellState extends State<MainGameShell> {
       _bonusWeaponDamage = loadedState.bonusWeaponDamage;
       _isRageActive = loadedState.isRageActive;
       _isWisdomActive = loadedState.isWisdomActive;
-      _lockedQuestId = loadedState.lockedQuestId;
+      final hasActiveLockedQuest =
+          loadedState.lockedQuestId != null &&
+          loadedQuests.any(
+            (q) => q.isActive && q.id == loadedState.lockedQuestId,
+          );
+      _lockedQuestId = hasActiveLockedQuest ? loadedState.lockedQuestId : null;
+      _critRollsUsed = loadedState.critRollsUsed;
       _totalDamageDealt = totalDmg;
       _isLoading = false;
     });
@@ -159,6 +171,7 @@ class _MainGameShellState extends State<MainGameShell> {
         isRageActive: _isRageActive,
         isWisdomActive: _isWisdomActive,
         lockedQuestId: _lockedQuestId,
+        critRollsUsed: _critRollsUsed,
         totalDamageDealt: _totalDamageDealt,
       ),
     );
@@ -243,7 +256,24 @@ class _MainGameShellState extends State<MainGameShell> {
   }
 
   void _spinRoulette() {
+    if (_isSpinning) return;
+
     final activeQuests = _quests.where((q) => q.isActive).toList();
+
+    if (_lockedQuestId != null &&
+        activeQuests.any((q) => q.id == _lockedQuestId)) {
+      _showFeedback(
+        'Selesaikan atau hapus quest crit saat ini sebelum spin lagi!',
+      );
+      return;
+    }
+
+    if (_critRollsUsed >= _maxCritRollsPerBoss) {
+      _showFeedback(
+        'Batas Crit Roll untuk Boss ini sudah habis (Maks $_maxCritRollsPerBoss kali per Boss)!',
+      );
+      return;
+    }
 
     if (activeQuests.isEmpty) {
       _showFeedback('Semua quest aktif selesai! Tambahkan quest baru dulu.');
@@ -253,13 +283,14 @@ class _MainGameShellState extends State<MainGameShell> {
     if (activeQuests.length == 1) {
       setState(() {
         _lockedQuestId = activeQuests.first.id;
+        _critRollsUsed++;
       });
       _saveGameState();
-      _showFeedback('Target dikunci: "${activeQuests.first.title}" (1.5x CRIT!)');
+      _showFeedback(
+        'Target dikunci: "${activeQuests.first.title}" (1.5x CRIT!)',
+      );
       return;
     }
-
-    if (_isSpinning) return;
 
     setState(() {
       _isSpinning = true;
@@ -292,6 +323,7 @@ class _MainGameShellState extends State<MainGameShell> {
         setState(() {
           _isSpinning = false;
           _lockedQuestId = randomQuest.id;
+          _critRollsUsed++;
           _spinningHighlightId = null;
         });
         _saveGameState();
@@ -373,6 +405,7 @@ class _MainGameShellState extends State<MainGameShell> {
       _bossLevel++;
       _bossMaxHp = 100 + (_bossLevel - 1) * 40;
       _bossCurrentHp = _bossMaxHp;
+      _critRollsUsed = 0;
     });
     _saveGameState();
 
@@ -463,7 +496,9 @@ class _MainGameShellState extends State<MainGameShell> {
     if (_bossCurrentHp == 0) {
       _handleBossDefeated();
     } else {
-      _showFeedback('METEOR STRIKE! -$scrollDamage HP ke ${_currentBoss.name}!');
+      _showFeedback(
+        'METEOR STRIKE! -$scrollDamage HP ke ${_currentBoss.name}!',
+      );
     }
   }
 
@@ -483,9 +518,7 @@ class _MainGameShellState extends State<MainGameShell> {
       return const Scaffold(
         backgroundColor: Color(0xFF11131A),
         body: Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFFFFB703),
-          ),
+          child: CircularProgressIndicator(color: Color(0xFFFFB703)),
         ),
       );
     }
@@ -581,6 +614,8 @@ class _MainGameShellState extends State<MainGameShell> {
             lockedQuestId: _lockedQuestId,
             spinningHighlightId: _spinningHighlightId,
             isSpinning: _isSpinning,
+            critRollsUsed: _critRollsUsed,
+            maxCritRolls: _maxCritRollsPerBoss,
             onSpinRoulette: _spinRoulette,
             onCompleteQuest: _confirmCompleteQuest,
             onDeleteQuest: (quest) {

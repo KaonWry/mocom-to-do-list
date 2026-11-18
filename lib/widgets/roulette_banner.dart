@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
+
 import '../models/quest.dart';
 
 class RouletteBanner extends StatelessWidget {
   final Quest? lockedQuest;
   final bool isSpinning;
+  final int critRollsUsed;
+  final int maxCritRolls;
   final VoidCallback onSpin;
 
   const RouletteBanner({
     super.key,
     required this.lockedQuest,
     required this.isSpinning,
+    required this.critRollsUsed,
+    this.maxCritRolls = 2,
     required this.onSpin,
   });
 
   @override
   Widget build(BuildContext context) {
+    final int remainingRolls = (maxCritRolls - critRollsUsed).clamp(
+      0,
+      maxCritRolls,
+    );
+    final bool canSpin =
+        !isSpinning && lockedQuest == null && remainingRolls > 0;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -30,9 +42,9 @@ class RouletteBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'TARGET ROULETTE (1.5x CRIT)',
-                  style: TextStyle(
+                Text(
+                  'TARGET ROULETTE (1.5x CRIT) • $remainingRolls/$maxCritRolls Roll',
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFFFFB703),
@@ -44,7 +56,9 @@ class RouletteBanner extends StatelessWidget {
                       ? 'Mengacak takdir quest...'
                       : (lockedQuest != null
                             ? lockedQuest!.title
-                            : 'Putar roulette untuk bonus damage!'),
+                            : (remainingRolls > 0
+                                  ? 'Putar roulette untuk bonus damage!'
+                                  : 'Jatah Crit Roll habis untuk Boss ini!')),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -57,7 +71,7 @@ class RouletteBanner extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           FilledButton.icon(
-            onPressed: isSpinning ? null : onSpin,
+            onPressed: canSpin ? onSpin : null,
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFFFB703),
               foregroundColor: Colors.black,

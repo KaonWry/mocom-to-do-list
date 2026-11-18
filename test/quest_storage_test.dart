@@ -100,54 +100,62 @@ void main() {
       expect(loaded[1].damageDealt, 45);
     });
 
-    test('saveGameState and loadGameState persist RPG progress properly', () async {
-      final storage = StorageService();
-      const customState = GameStateData(
-        playerLevel: 5,
-        playerXp: 120,
-        gold: 350,
-        bossLevel: 3,
-        bossCurrentHp: 110,
-        bossMaxHp: 180,
-        weaponLevel: 4,
-        bonusWeaponDamage: 20,
-        isRageActive: true,
-        isWisdomActive: false,
-        lockedQuestId: 'custom-1',
-        totalDamageDealt: 750,
-      );
+    test(
+      'saveGameState and loadGameState persist RPG progress properly',
+      () async {
+        final storage = StorageService();
+        const customState = GameStateData(
+          playerLevel: 5,
+          playerXp: 120,
+          gold: 350,
+          bossLevel: 3,
+          bossCurrentHp: 110,
+          bossMaxHp: 180,
+          weaponLevel: 4,
+          bonusWeaponDamage: 20,
+          isRageActive: true,
+          isWisdomActive: false,
+          lockedQuestId: 'custom-1',
+          critRollsUsed: 1,
+          totalDamageDealt: 750,
+        );
 
-      final saved = await storage.saveGameState(customState);
-      expect(saved, isTrue);
+        final saved = await storage.saveGameState(customState);
+        expect(saved, isTrue);
 
-      final loaded = await storage.loadGameState();
-      expect(loaded.playerLevel, 5);
-      expect(loaded.playerXp, 120);
-      expect(loaded.gold, 350);
-      expect(loaded.bossLevel, 3);
-      expect(loaded.bossCurrentHp, 110);
-      expect(loaded.bossMaxHp, 180);
-      expect(loaded.weaponLevel, 4);
-      expect(loaded.bonusWeaponDamage, 20);
-      expect(loaded.isRageActive, isTrue);
-      expect(loaded.isWisdomActive, isFalse);
-      expect(loaded.lockedQuestId, 'custom-1');
-      expect(loaded.totalDamageDealt, 750);
-    });
+        final loaded = await storage.loadGameState();
+        expect(loaded.playerLevel, 5);
+        expect(loaded.playerXp, 120);
+        expect(loaded.gold, 350);
+        expect(loaded.bossLevel, 3);
+        expect(loaded.bossCurrentHp, 110);
+        expect(loaded.bossMaxHp, 180);
+        expect(loaded.weaponLevel, 4);
+        expect(loaded.bonusWeaponDamage, 20);
+        expect(loaded.isRageActive, isTrue);
+        expect(loaded.isWisdomActive, isFalse);
+        expect(loaded.lockedQuestId, 'custom-1');
+        expect(loaded.critRollsUsed, 1);
+        expect(loaded.totalDamageDealt, 750);
+      },
+    );
 
-    test('Corrupted data gracefully falls back to defaults without crash', () async {
-      SharedPreferences.setMockInitialValues({
-        StorageService.questsKey: 'invalid-json-string',
-        StorageService.gameStateKey: 'invalid-json-string',
-      });
+    test(
+      'Corrupted data gracefully falls back to defaults without crash',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          StorageService.questsKey: 'invalid-json-string',
+          StorageService.gameStateKey: 'invalid-json-string',
+        });
 
-      final storage = StorageService();
-      final quests = await storage.loadQuests();
-      expect(quests.length, 3);
+        final storage = StorageService();
+        final quests = await storage.loadQuests();
+        expect(quests.length, 3);
 
-      final state = await storage.loadGameState();
-      expect(state.playerLevel, 1);
-      expect(state.gold, 50);
-    });
+        final state = await storage.loadGameState();
+        expect(state.playerLevel, 1);
+        expect(state.gold, 50);
+      },
+    );
   });
 }
