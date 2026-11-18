@@ -33,14 +33,34 @@ class QuestRouletteApp extends StatelessWidget {
   }
 }
 
+class BossProfile {
+  final String name;
+  final IconData icon;
+  final Color color;
+
+  const BossProfile({
+    required this.name,
+    required this.icon,
+    required this.color,
+  });
+}
+
 enum QuestDifficulty {
-  easy('Easy (Goblin)', 15, 10, Color(0xFF4CAF50), Icons.shield_outlined),
-  medium('Medium (Orc)', 30, 25, Color(0xFFFF9800), Icons.local_fire_department),
-  hard('Hard (Dragon)', 50, 50, Color(0xFFE63946), Icons.whatshot);
+  easy('Easy (Goblin)', 15, 10, 15, Color(0xFF4CAF50), Icons.shield_outlined),
+  medium(
+    'Medium (Orc)',
+    30,
+    25,
+    25,
+    Color(0xFFFF9800),
+    Icons.local_fire_department,
+  ),
+  hard('Hard (Dragon)', 50, 50, 40, Color(0xFFE63946), Icons.whatshot);
 
   final String label;
   final int damage;
   final int xp;
+  final int penaltyGold;
   final Color color;
   final IconData icon;
 
@@ -48,6 +68,7 @@ enum QuestDifficulty {
     this.label,
     this.damage,
     this.xp,
+    this.penaltyGold,
     this.color,
     this.icon,
   );
@@ -57,18 +78,26 @@ class Quest {
   final String id;
   final String title;
   final QuestDifficulty difficulty;
+  final DateTime deadline;
   bool isDone;
-  DateTime? completedAt;
+  bool isFailed;
+  DateTime? finishedAt;
   int? damageDealt;
+  int? goldLost;
 
   Quest({
     required this.id,
     required this.title,
     required this.difficulty,
+    required this.deadline,
     this.isDone = false,
-    this.completedAt,
+    this.isFailed = false,
+    this.finishedAt,
     this.damageDealt,
+    this.goldLost,
   });
+
+  bool get isActive => !isDone && !isFailed;
 }
 
 class MainGameShell extends StatefulWidget {
@@ -80,22 +109,34 @@ class MainGameShell extends StatefulWidget {
 
 class _MainGameShellState extends State<MainGameShell> {
   int _selectedTabIndex = 0;
+  late List<Quest> _quests;
 
-  final List<Quest> _quests = [
-    Quest(
-      id: '1',
-      title: 'Rapikan catatan kuliah hari ini',
-      difficulty: QuestDifficulty.easy,
+  // 5 Boss
+  final List<BossProfile> _bossRoster = const [
+    BossProfile(
+      name: 'Slime King',
+      icon: Icons.water_drop_rounded,
+      color: Color(0xFF2EC4B6),
     ),
-    Quest(
-      id: '2',
-      title: 'Kerjakan UI aplikasi To-Do List',
-      difficulty: QuestDifficulty.medium,
+    BossProfile(
+      name: 'Time Golem',
+      icon: Icons.hourglass_bottom_rounded,
+      color: Color(0xFFFF9F1C),
     ),
-    Quest(
-      id: '3',
-      title: 'Selesaikan laporan praktikum',
-      difficulty: QuestDifficulty.hard,
+    BossProfile(
+      name: 'Dark Knight',
+      icon: Icons.shield_rounded,
+      color: Color(0xFF5E60CE),
+    ),
+    BossProfile(
+      name: 'Dragon Lord',
+      icon: Icons.whatshot_rounded,
+      color: Color(0xFFE63946),
+    ),
+    BossProfile(
+      name: 'Overworld of Shadows',
+      icon: Icons.nights_stay_rounded,
+      color: Color(0xFFB5179E),
     ),
   ];
 
@@ -105,43 +146,183 @@ class _MainGameShellState extends State<MainGameShell> {
   int _bossCurrentHp = 100;
   int _playerLevel = 1;
   int _playerXp = 0;
-  int _gold = 30; // Modal awal sedikit agar bisa langsung eksplorasi
+  int _gold = 50; 
 
   // State Equipment & Support Buffs
   int _weaponLevel = 0;
   int _bonusWeaponDamage = 0;
-  bool _isRageActive = false; // 2x Damage pada quest berikutnya
-  bool _isWisdomActive = false; // 2x EXP pada quest berikutnya
+  bool _isRageActive = false;
+  bool _isWisdomActive = false;
 
-  final List<String> _bossTitles = [
-    'Slime King',
-    'Time Golem',
-    'Dark Knight',
-    'Dragonlord',
-    'Overlord of Shadows',
-  ];
-
-  // State Roulette
+  // State Roulette & Deadline Checker
   String? _lockedQuestId;
   String? _spinningHighlightId;
   bool _isSpinning = false;
   Timer? _spinTimer;
+  Timer? _deadlineTicker;
   final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _quests = [
+      Quest(
+        id: '1',
+        title: 'Rapikan catatan kuliah hari ini',
+        difficulty: QuestDifficulty.easy,
+        deadline: now.add(const Duration(hours: 2)),
+      ),
+      Quest(
+        id: '2',
+        title: 'Kerjakan UI aplikasi To-Do List',
+        difficulty: QuestDifficulty.medium,
+        deadline: now.add(const Duration(hours: 5)),
+      ),
+      Quest(
+        id: '3',
+        title: 'Selesaikan laporan praktikum',
+        difficulty: QuestDifficulty.hard,
+        deadline: now.add(const Duration(days: 1)),
+      ),
+    ];
+
+    // Timer setiap 1 detik untuk menghitung mundur deadline & cek punishment
+    _deadlineTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      _checkDeadlines();
+    });
+  }
 
   @override
   void dispose() {
     _spinTimer?.cancel();
+    _deadlineTicker?.cancel();
     super.dispose();
   }
 
-  String get _currentBossName =>
-      _bossTitles[(_bossLevel - 1) % _bossTitles.length];
+  BossProfile get _currentBoss =>
+      _bossRoster[(_bossLevel - 1) % _bossRoster.length];
 
   int get _xpToNextLevel => _playerLevel * 100;
 
   int get _currentBossGoldReward => 50 + (_bossLevel * 25);
 
   int get _weaponUpgradeCost => 50 + (_weaponLevel * 35);
+
+  void _checkDeadlines() {
+    final now = DateTime.now();
+    final expiredQuests = _quests
+        .where((q) => q.isActive && now.isAfter(q.deadline))
+        .toList();
+
+    if (expiredQuests.isEmpty) {
+      // Setstate perbaruin detik waktu tenggat
+      if (_quests.any((q) => q.isActive) && mounted) {
+        setState(() {});
+      }
+      return;
+    }
+
+    int totalPenalty = 0;
+    for (final quest in expiredQuests) {
+      quest.isFailed = true;
+      quest.finishedAt = now;
+      quest.goldLost = quest.difficulty.penaltyGold;
+      totalPenalty += quest.difficulty.penaltyGold;
+
+      if (_lockedQuestId == quest.id) {
+        _lockedQuestId = null;
+      }
+    }
+
+    final int actualGoldDeducted = min(_gold, totalPenalty);
+
+    setState(() {
+      _gold = max(0, _gold - totalPenalty);
+    });
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C202B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 30),
+            SizedBox(width: 10),
+            Text(
+              'PUNISHMENT!',
+              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${expiredQuests.length} quest telah melewati tenggat waktu! ${_currentBoss.name} menyerang balik saat kamu lengah:',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 12),
+            ...expiredQuests.map(
+              (q) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '• ${q.title} (-${q.difficulty.penaltyGold} G)',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.redAccent.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.money_off, color: Colors.redAccent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      actualGoldDeducted > 0
+                          ? 'Gold Dirampas: -$actualGoldDeducted Gold (Sisa: $_gold G)'
+                          : 'Gold kamu sudah habis (0 G)!',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.redAccent,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Terima Hukuman'),
+          ),
+        ],
+      ),
+    );
+  }
 
   int _calculateDamage(Quest quest) {
     final bool isCritical = quest.id == _lockedQuestId;
@@ -159,7 +340,7 @@ class _MainGameShellState extends State<MainGameShell> {
   }
 
   void _spinRoulette() {
-    final activeQuests = _quests.where((q) => !q.isDone).toList();
+    final activeQuests = _quests.where((q) => q.isActive).toList();
 
     if (activeQuests.isEmpty) {
       _showFeedback('Semua quest aktif selesai! Tambahkan quest baru dulu.');
@@ -186,7 +367,17 @@ class _MainGameShellState extends State<MainGameShell> {
 
     _spinTimer = Timer.periodic(const Duration(milliseconds: 85), (timer) {
       ticks++;
-      final randomQuest = activeQuests[_random.nextInt(activeQuests.length)];
+      final currentActive = _quests.where((q) => q.isActive).toList();
+      if (currentActive.isEmpty) {
+        timer.cancel();
+        setState(() {
+          _isSpinning = false;
+          _spinningHighlightId = null;
+        });
+        return;
+      }
+
+      final randomQuest = currentActive[_random.nextInt(currentActive.length)];
 
       setState(() {
         _spinningHighlightId = randomQuest.id;
@@ -206,9 +397,8 @@ class _MainGameShellState extends State<MainGameShell> {
     });
   }
 
-  // Konfirmasi sebelum menyelesaikan tugas
   void _confirmCompleteQuest(Quest quest) {
-    if (quest.isDone || _isSpinning) return;
+    if (!quest.isActive || _isSpinning) return;
 
     final bool isCritical = quest.id == _lockedQuestId;
     final int previewDamage = _calculateDamage(quest);
@@ -231,7 +421,7 @@ class _MainGameShellState extends State<MainGameShell> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Apakah kamu yakin sudah menyelesaikan tugas ini?',
+              'Apakah kamu yakin sudah menyelesaikan tugas ini sebelum tenggat waktu?',
               style: TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 12),
@@ -255,7 +445,7 @@ class _MainGameShellState extends State<MainGameShell> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '• Total Serangan: -$previewDamage HP ke Boss',
+                    '• Total Serangan: -$previewDamage HP ke ${_currentBoss.name}',
                     style: const TextStyle(
                       color: Color(0xFFE63946),
                       fontWeight: FontWeight.w600,
@@ -283,25 +473,33 @@ class _MainGameShellState extends State<MainGameShell> {
                       Text(
                         '  + Senjata Lv.$_weaponLevel (+$_bonusWeaponDamage Base DMG)',
                         style: const TextStyle(
-                            fontSize: 11, color: Colors.lightBlueAccent),
+                          fontSize: 11,
+                          color: Colors.lightBlueAccent,
+                        ),
                       ),
                     if (isCritical)
                       const Text(
                         '  + Target Roulette (1.5x CRIT)',
-                        style:
-                            TextStyle(fontSize: 11, color: Color(0xFFFFB703)),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFFFFB703),
+                        ),
                       ),
                     if (_isRageActive)
                       const Text(
                         '  + Rage Potion (2x DMG)',
-                        style:
-                            TextStyle(fontSize: 11, color: Colors.orangeAccent),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.orangeAccent,
+                        ),
                       ),
                     if (_isWisdomActive)
                       const Text(
                         '  + Wisdom Elixir (2x EXP)',
-                        style:
-                            TextStyle(fontSize: 11, color: Colors.purpleAccent),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.purpleAccent,
+                        ),
                       ),
                   ],
                 ],
@@ -341,25 +539,22 @@ class _MainGameShellState extends State<MainGameShell> {
 
     setState(() {
       quest.isDone = true;
-      quest.completedAt = DateTime.now();
+      quest.finishedAt = DateTime.now();
       quest.damageDealt = finalDamage;
 
       if (isCritical) {
         _lockedQuestId = null;
       }
 
-      // Konsumsi buff sekali pakai
       _isRageActive = false;
       _isWisdomActive = false;
 
-      // Tambah XP & Cek Level Up Player
       _playerXp += gainedXp;
       while (_playerXp >= _xpToNextLevel) {
         _playerXp -= _xpToNextLevel;
         _playerLevel++;
       }
 
-      // Kurangi HP Boss
       _bossCurrentHp = max(0, _bossCurrentHp - finalDamage);
     });
 
@@ -368,14 +563,14 @@ class _MainGameShellState extends State<MainGameShell> {
     } else {
       _showFeedback(
         isCritical
-            ? 'CRITICAL HIT! -$finalDamage DMG ke Boss (+$gainedXp XP)'
-            : 'Serangan berhasil! -$finalDamage DMG ke Boss (+$gainedXp XP)',
+            ? 'CRITICAL HIT! -$finalDamage DMG ke ${_currentBoss.name} (+$gainedXp XP)'
+            : 'Serangan berhasil! -$finalDamage DMG ke ${_currentBoss.name} (+$gainedXp XP)',
       );
     }
   }
 
   void _handleBossDefeated() {
-    final defeatedBossName = _currentBossName;
+    final defeatedBoss = _currentBoss;
     final defeatedLevel = _bossLevel;
     final earnedGold = _currentBossGoldReward;
 
@@ -385,6 +580,8 @@ class _MainGameShellState extends State<MainGameShell> {
       _bossMaxHp = 100 + (_bossLevel - 1) * 40;
       _bossCurrentHp = _bossMaxHp;
     });
+
+    final nextBoss = _currentBoss;
 
     showDialog(
       context: context,
@@ -403,7 +600,7 @@ class _MainGameShellState extends State<MainGameShell> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Kamu berhasil menumbangkan Lv.$defeatedLevel $defeatedBossName!',
+              'Kamu berhasil menumbangkan Lv.$defeatedLevel ${defeatedBoss.name}!',
             ),
             const SizedBox(height: 12),
             Container(
@@ -430,9 +627,17 @@ class _MainGameShellState extends State<MainGameShell> {
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              'Boss baru Lv.$_bossLevel $_currentBossName telah muncul dengan $_bossMaxHp HP!',
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            Row(
+              children: [
+                Icon(nextBoss.icon, color: nextBoss.color, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Boss berikutnya: Lv.$_bossLevel ${nextBoss.name} ($_bossMaxHp HP)',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -446,7 +651,7 @@ class _MainGameShellState extends State<MainGameShell> {
     );
   }
 
-  // Logika Pembelian Item di Shop
+  // Item shop logic
   void _buyWeaponUpgrade() {
     final cost = _weaponUpgradeCost;
     if (_gold < cost) {
@@ -516,13 +721,15 @@ class _MainGameShellState extends State<MainGameShell> {
     if (_bossCurrentHp == 0) {
       _handleBossDefeated();
     } else {
-      _showFeedback('METEOR STRIKE! -$scrollDamage HP langsung ke Boss!');
+      _showFeedback('METEOR STRIKE! -$scrollDamage HP ke ${_currentBoss.name}!');
     }
   }
 
+  // Modal Tambah Quest + Pengaturan Tenggat Waktu
   void _showAddQuestSheet() {
     final titleController = TextEditingController();
     QuestDifficulty selectedDifficulty = QuestDifficulty.medium;
+    DateTime selectedDeadline = DateTime.now().add(const Duration(hours: 3));
 
     showModalBottomSheet(
       context: context,
@@ -534,6 +741,42 @@ class _MainGameShellState extends State<MainGameShell> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            Future<void> pickCustomDateTime() async {
+              final now = DateTime.now();
+              final pickedDate = await showDatePicker(
+                context: context,
+                initialDate: selectedDeadline.isAfter(now)
+                    ? selectedDeadline
+                    : now,
+                firstDate: now,
+                lastDate: now.add(const Duration(days: 365)),
+              );
+              if (pickedDate == null || !context.mounted) return;
+
+              final pickedTime = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay.fromDateTime(selectedDeadline),
+              );
+              if (pickedTime == null) return;
+
+              final combined = DateTime(
+                pickedDate.year,
+                pickedDate.month,
+                pickedDate.day,
+                pickedTime.hour,
+                pickedTime.minute,
+              );
+
+              if (combined.isBefore(DateTime.now())) {
+                _showFeedback('Tenggat waktu tidak boleh di masa lalu!');
+                return;
+              }
+
+              setModalState(() {
+                selectedDeadline = combined;
+              });
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 20,
@@ -541,82 +784,181 @@ class _MainGameShellState extends State<MainGameShell> {
                 top: 24,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Tambah Quest Baru',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: titleController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'Contoh: Selesaikan bab 2 skripsi...',
-                      filled: true,
-                      fillColor: const Color(0xFF11131A),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tambah Quest Baru',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: titleController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'Contoh: Selesaikan bab 2 skripsi...',
+                        filled: true,
+                        fillColor: const Color(0xFF11131A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Tingkat Kesulitan (Base Damage):',
-                    style: TextStyle(fontSize: 13, color: Colors.white70),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: QuestDifficulty.values.map((diff) {
-                      final isSelected = selectedDifficulty == diff;
-                      return ChoiceChip(
-                        label: Text('${diff.label} (${diff.damage} DMG)'),
-                        selected: isSelected,
-                        selectedColor: diff.color.withValues(alpha: 0.25),
-                        labelStyle: TextStyle(
-                          color: isSelected ? diff.color : Colors.white70,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                        onSelected: (_) {
-                          setModalState(() {
-                            selectedDifficulty = diff;
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        final text = titleController.text.trim();
-                        if (text.isEmpty) return;
-
-                        setState(() {
-                          _quests.insert(
-                            0,
-                            Quest(
-                              id: DateTime.now()
-                                  .millisecondsSinceEpoch
-                                  .toString(),
-                              title: text,
-                              difficulty: selectedDifficulty,
-                            ),
-                          );
-                        });
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.add_task),
-                      label: const Text('Simpan Quest'),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Tingkat Kesulitan (Damage vs Punishment):',
+                      style: TextStyle(fontSize: 13, color: Colors.white70),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: QuestDifficulty.values.map((diff) {
+                        final isSelected = selectedDifficulty == diff;
+                        return ChoiceChip(
+                          label: Text(
+                            '${diff.label} (${diff.damage} DMG | -${diff.penaltyGold}G)',
+                          ),
+                          selected: isSelected,
+                          selectedColor: diff.color.withValues(alpha: 0.25),
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            color: isSelected ? diff.color : Colors.white70,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          onSelected: (_) {
+                            setModalState(() {
+                              selectedDifficulty = diff;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Tenggat Waktu (Deadline):',
+                      style: TextStyle(fontSize: 13, color: Colors.white70),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        ActionChip(
+                          avatar: const Icon(Icons.timer, size: 16, color: Colors.redAccent),
+                          label: const Text('+1 Menit (Demo)', style: TextStyle(fontSize: 12)),
+                          onPressed: () {
+                            setModalState(() {
+                              selectedDeadline = DateTime.now().add(const Duration(minutes: 1));
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          label: const Text('+1 Jam', style: TextStyle(fontSize: 12)),
+                          onPressed: () {
+                            setModalState(() {
+                              selectedDeadline = DateTime.now().add(const Duration(hours: 1));
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          label: const Text('+3 Jam', style: TextStyle(fontSize: 12)),
+                          onPressed: () {
+                            setModalState(() {
+                              selectedDeadline = DateTime.now().add(const Duration(hours: 3));
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          label: const Text('Besok', style: TextStyle(fontSize: 12)),
+                          onPressed: () {
+                            setModalState(() {
+                              selectedDeadline = DateTime.now().add(const Duration(days: 1));
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: pickCustomDateTime,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF11131A),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFFFB703).withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.event_available,
+                              color: Color(0xFFFFB703),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Batas: ${_formatDateTime(selectedDeadline)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            const Text(
+                              'Ubah',
+                              style: TextStyle(
+                                color: Color(0xFFFFB703),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          final text = titleController.text.trim();
+                          if (text.isEmpty) return;
+
+                          setState(() {
+                            _quests.insert(
+                              0,
+                              Quest(
+                                id: DateTime.now()
+                                    .millisecondsSinceEpoch
+                                    .toString(),
+                                title: text,
+                                difficulty: selectedDifficulty,
+                                deadline: selectedDeadline,
+                              ),
+                            );
+                          });
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.add_task),
+                        label: const Text('Simpan Quest'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -642,26 +984,43 @@ class _MainGameShellState extends State<MainGameShell> {
     final minute = dt.minute.toString().padLeft(2, '0');
     final day = dt.day.toString().padLeft(2, '0');
     final month = dt.month.toString().padLeft(2, '0');
-    return '$hour:$minute • $day/$month/${dt.year}';
+    return '$day/$month/${dt.year} • $hour:$minute';
+  }
+
+  String _formatRemainingTime(DateTime deadline) {
+    final diff = deadline.difference(DateTime.now());
+    if (diff.isNegative) return 'Waktu habis!';
+
+    if (diff.inDays > 0) {
+      return '${diff.inDays}h ${diff.inHours % 24}j lagi';
+    } else if (diff.inHours > 0) {
+      return '${diff.inHours}j ${diff.inMinutes % 60}m lagi';
+    } else if (diff.inMinutes > 0) {
+      return '${diff.inMinutes}m ${diff.inSeconds % 60}d lagi';
+    } else {
+      return '${diff.inSeconds}d lagi!';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final activeQuests = _quests.where((q) => !q.isDone).toList();
-    final completedQuests = _quests.where((q) => q.isDone).toList()
-      ..sort((a, b) => (b.completedAt ?? DateTime.now())
-          .compareTo(a.completedAt ?? DateTime.now()));
+    final activeQuests = _quests.where((q) => q.isActive).toList();
+    final historyQuests = _quests.where((q) => !q.isActive).toList()
+      ..sort(
+        (a, b) => (b.finishedAt ?? DateTime.now()).compareTo(
+          a.finishedAt ?? DateTime.now(),
+        ),
+      );
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
-          'QUEST ROULETTE',
+          'Quest Roulette',
           style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.1),
         ),
         actions: [
-          // Badge Gold
           Container(
             margin: const EdgeInsets.only(right: 8, top: 10, bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -672,8 +1031,11 @@ class _MainGameShellState extends State<MainGameShell> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.monetization_on,
-                    size: 15, color: Colors.amber),
+                const Icon(
+                  Icons.monetization_on,
+                  size: 15,
+                  color: Colors.amber,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '$_gold G',
@@ -686,7 +1048,6 @@ class _MainGameShellState extends State<MainGameShell> {
               ],
             ),
           ),
-          // Badge Level & XP
           Container(
             margin: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -694,7 +1055,8 @@ class _MainGameShellState extends State<MainGameShell> {
               color: Colors.lightBlueAccent.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: Colors.lightBlueAccent.withValues(alpha: 0.5)),
+                color: Colors.lightBlueAccent.withValues(alpha: 0.5),
+              ),
             ),
             child: Center(
               child: Text(
@@ -714,7 +1076,7 @@ class _MainGameShellState extends State<MainGameShell> {
         children: [
           _buildArenaTab(activeQuests),
           _buildShopTab(),
-          _buildHistoryTab(completedQuests),
+          _buildHistoryTab(historyQuests),
         ],
       ),
       floatingActionButton: _selectedTabIndex == 0
@@ -751,12 +1113,11 @@ class _MainGameShellState extends State<MainGameShell> {
           ),
           NavigationDestination(
             icon: Badge(
-              isLabelVisible: completedQuests.isNotEmpty,
-              label: Text('${completedQuests.length}'),
+              isLabelVisible: historyQuests.isNotEmpty,
+              label: Text('${historyQuests.length}'),
               child: const Icon(Icons.history_outlined),
             ),
-            selectedIcon:
-                const Icon(Icons.history, color: Color(0xFFFFB703)),
+            selectedIcon: const Icon(Icons.history, color: Color(0xFFFFB703)),
             label: 'History',
           ),
         ],
@@ -764,8 +1125,9 @@ class _MainGameShellState extends State<MainGameShell> {
     );
   }
 
-  // ==================== TAB 1: ARENA & QUESTS ====================
+  // Arena dan quest
   Widget _buildArenaTab(List<Quest> activeQuests) {
+    final boss = _currentBoss;
     final hpRatio = _bossCurrentHp / _bossMaxHp;
     final lockedQuest = activeQuests.cast<Quest?>().firstWhere(
           (q) => q?.id == _lockedQuestId,
@@ -776,7 +1138,7 @@ class _MainGameShellState extends State<MainGameShell> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // 1. BOSS ARENA CARD
+          // Boss info
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -787,13 +1149,15 @@ class _MainGameShellState extends State<MainGameShell> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color:
-                              const Color(0xFFE63946).withValues(alpha: 0.15),
+                          color: boss.color.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: boss.color.withValues(alpha: 0.5),
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.bug_report_rounded,
-                          color: Color(0xFFE63946),
+                        child: Icon(
+                          boss.icon,
+                          color: boss.color,
                           size: 36,
                         ),
                       ),
@@ -806,8 +1170,8 @@ class _MainGameShellState extends State<MainGameShell> {
                               children: [
                                 Text(
                                   'BOSS LV.$_bossLevel',
-                                  style: const TextStyle(
-                                    color: Color(0xFFE63946),
+                                  style: TextStyle(
+                                    color: boss.color,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 1,
@@ -825,7 +1189,7 @@ class _MainGameShellState extends State<MainGameShell> {
                               ],
                             ),
                             Text(
-                              _currentBossName,
+                              boss.name,
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -855,14 +1219,11 @@ class _MainGameShellState extends State<MainGameShell> {
                           value: value,
                           minHeight: 12,
                           backgroundColor: const Color(0xFF11131A),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFFE63946),
-                          ),
+                          valueColor: AlwaysStoppedAnimation<Color>(boss.color),
                         );
                       },
                     ),
                   ),
-                  // Status Buff Aktif (jika ada)
                   if (_bonusWeaponDamage > 0 ||
                       _isRageActive ||
                       _isWisdomActive) ...[
@@ -899,7 +1260,7 @@ class _MainGameShellState extends State<MainGameShell> {
 
           const SizedBox(height: 10),
 
-          // 2. ROULETTE ACTION PANEL
+          // 2. Gacha Tugas
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -933,8 +1294,8 @@ class _MainGameShellState extends State<MainGameShell> {
                         _isSpinning
                             ? 'Mengacak takdir quest...'
                             : (lockedQuest != null
-                                ? lockedQuest.title
-                                : 'Putar roulette untuk bonus damage!'),
+                                  ? lockedQuest.title
+                                  : 'Putar roulette untuk bonus damage!'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -961,7 +1322,7 @@ class _MainGameShellState extends State<MainGameShell> {
 
           const SizedBox(height: 14),
 
-          // 3. QUEST LIST HEADER
+          //Quest List
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -981,12 +1342,12 @@ class _MainGameShellState extends State<MainGameShell> {
           ),
           const SizedBox(height: 8),
 
-          // 4. ACTIVE QUEST LIST
+          // Active quests
           Expanded(
             child: activeQuests.isEmpty
                 ? const Center(
                     child: Text(
-                      'Semua quest aktif sudah selesai!\nCek tab History atau tekan + Quest Baru.',
+                      'Tidak ada quest aktif.\nCek tab History atau tekan + Quest Baru.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white54),
                     ),
@@ -999,6 +1360,10 @@ class _MainGameShellState extends State<MainGameShell> {
                       final isLockedTarget = quest.id == _lockedQuestId;
                       final isHighlighted = quest.id == _spinningHighlightId;
                       final calculatedDmg = _calculateDamage(quest);
+                      final remaining = quest.deadline.difference(
+                        DateTime.now(),
+                      );
+                      final isUrgent = remaining.inMinutes < 10;
 
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
@@ -1011,7 +1376,9 @@ class _MainGameShellState extends State<MainGameShell> {
                           border: Border.all(
                             color: isLockedTarget || isHighlighted
                                 ? const Color(0xFFFFB703)
-                                : Colors.transparent,
+                                : (isUrgent
+                                      ? Colors.redAccent.withValues(alpha: 0.6)
+                                      : Colors.transparent),
                             width: 1.8,
                           ),
                         ),
@@ -1033,25 +1400,57 @@ class _MainGameShellState extends State<MainGameShell> {
                                   : FontWeight.normal,
                             ),
                           ),
-                          subtitle: Row(
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                quest.difficulty.icon,
-                                size: 14,
-                                color: quest.difficulty.color,
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(
+                                    quest.difficulty.icon,
+                                    size: 13,
+                                    color: quest.difficulty.color,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${quest.difficulty.label} • $calculatedDmg DMG',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isLockedTarget
+                                          ? const Color(0xFFFFB703)
+                                          : quest.difficulty.color,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${quest.difficulty.label} • $calculatedDmg DMG',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isLockedTarget
-                                      ? const Color(0xFFFFB703)
-                                      : quest.difficulty.color,
-                                ),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.timer_outlined,
+                                    size: 13,
+                                    color: isUrgent
+                                        ? Colors.redAccent
+                                        : Colors.white54,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Tenggat: ${_formatRemainingTime(quest.deadline)} (Penalti -${quest.difficulty.penaltyGold}G)',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isUrgent
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: isUrgent
+                                          ? Colors.redAccent
+                                          : Colors.white54,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
+                          isThreeLine: true,
                           trailing: IconButton(
                             icon: const Icon(
                               Icons.delete_outline,
@@ -1096,7 +1495,7 @@ class _MainGameShellState extends State<MainGameShell> {
     );
   }
 
-  // ==================== TAB 2: ITEM SHOP ====================
+  // Item Shop
   Widget _buildShopTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1124,7 +1523,7 @@ class _MainGameShellState extends State<MainGameShell> {
                       ),
                     ),
                     Text(
-                      'Kalahkan Boss untuk mengumpulkan Gold dan perkuat seranganmu!',
+                      'Gunakan Gold hasil mengalahkan Boss untuk memperkuat seranganmu!',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withValues(alpha: 0.7),
@@ -1265,8 +1664,9 @@ class _MainGameShellState extends State<MainGameShell> {
             FilledButton(
               onPressed: isDisabled ? null : onBuy,
               style: FilledButton.styleFrom(
-                backgroundColor:
-                    canAfford ? const Color(0xFFFFB703) : Colors.white12,
+                backgroundColor: canAfford
+                    ? const Color(0xFFFFB703)
+                    : Colors.white12,
                 foregroundColor: canAfford ? Colors.black : Colors.white54,
               ),
               child: Text(
@@ -1280,18 +1680,21 @@ class _MainGameShellState extends State<MainGameShell> {
     );
   }
 
-  // ==================== TAB 3: QUEST HISTORY ====================
-  Widget _buildHistoryTab(List<Quest> completedQuests) {
-    final totalDamageDealt = completedQuests.fold<int>(
-      0,
-      (sum, item) => sum + (item.damageDealt ?? item.difficulty.damage),
-    );
+  // Quest History
+  Widget _buildHistoryTab(List<Quest> historyQuests) {
+    final completedCount = historyQuests.where((q) => q.isDone).length;
+    final failedCount = historyQuests.where((q) => q.isFailed).length;
+    final totalDamageDealt = historyQuests
+        .where((q) => q.isDone)
+        .fold<int>(
+          0,
+          (sum, item) => sum + (item.damageDealt ?? item.difficulty.damage),
+        );
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Ringkasan Statistik History
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -1304,33 +1707,50 @@ class _MainGameShellState extends State<MainGameShell> {
                 Column(
                   children: [
                     Text(
-                      '${completedQuests.length}',
+                      '$completedCount',
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.greenAccent,
                       ),
                     ),
                     const Text(
-                      'Quest Selesai',
-                      style: TextStyle(fontSize: 12, color: Colors.white60),
+                      'Selesai',
+                      style: TextStyle(fontSize: 11, color: Colors.white60),
                     ),
                   ],
                 ),
-                Container(width: 1, height: 32, color: Colors.white12),
+                Container(width: 1, height: 30, color: Colors.white12),
+                Column(
+                  children: [
+                    Text(
+                      '$failedCount',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                    const Text(
+                      'Gagal',
+                      style: TextStyle(fontSize: 11, color: Colors.white60),
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 30, color: Colors.white12),
                 Column(
                   children: [
                     Text(
                       '$totalDamageDealt',
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFFE63946),
+                        color: Color(0xFFFFB703),
                       ),
                     ),
                     const Text(
-                      'Total Damage',
-                      style: TextStyle(fontSize: 12, color: Colors.white60),
+                      'Total DMG',
+                      style: TextStyle(fontSize: 11, color: Colors.white60),
                     ),
                   ],
                 ),
@@ -1342,23 +1762,26 @@ class _MainGameShellState extends State<MainGameShell> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'RIWAYAT QUEST SELESAI',
+                'RIWAYAT QUEST',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1,
                   color: Colors.white70,
                 ),
               ),
-              if (completedQuests.isNotEmpty)
+              if (historyQuests.isNotEmpty)
                 TextButton.icon(
                   onPressed: () {
                     setState(() {
-                      _quests.removeWhere((q) => q.isDone);
+                      _quests.removeWhere((q) => !q.isActive);
                     });
                     _showFeedback('Riwayat quest dibersihkan.');
                   },
-                  icon: const Icon(Icons.delete_sweep,
-                      size: 18, color: Colors.white54),
+                  icon: const Icon(
+                    Icons.delete_sweep,
+                    size: 18,
+                    color: Colors.white54,
+                  ),
                   label: const Text(
                     'Bersihkan',
                     style: TextStyle(color: Colors.white54, fontSize: 12),
@@ -1368,37 +1791,47 @@ class _MainGameShellState extends State<MainGameShell> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: completedQuests.isEmpty
+            child: historyQuests.isEmpty
                 ? const Center(
                     child: Text(
-                      'Belum ada quest yang diselesaikan.\nSelesaikan quest di tab Arena untuk mencatat sejarah!',
+                      'Belum ada riwayat quest.\nSelesaikan quest di tab Arena untuk mencatat sejarah!',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white54),
                     ),
                   )
                 : ListView.builder(
-                    itemCount: completedQuests.length,
+                    itemCount: historyQuests.length,
                     itemBuilder: (context, index) {
-                      final quest = completedQuests[index];
+                      final quest = historyQuests[index];
+                      final isFailed = quest.isFailed;
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
                         child: ListTile(
-                          leading: const Icon(
-                            Icons.check_circle,
-                            color: Colors.greenAccent,
+                          leading: Icon(
+                            isFailed ? Icons.cancel : Icons.check_circle,
+                            color: isFailed
+                                ? Colors.redAccent
+                                : Colors.greenAccent,
                           ),
                           title: Text(
                             quest.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               decoration: TextDecoration.lineThrough,
-                              color: Colors.white70,
+                              color: isFailed
+                                  ? Colors.redAccent.withValues(alpha: 0.85)
+                                  : Colors.white70,
                             ),
                           ),
                           subtitle: Text(
-                            '${quest.difficulty.label} • -${quest.damageDealt ?? quest.difficulty.damage} DMG\nSelesai: ${_formatDateTime(quest.completedAt)}',
-                            style: const TextStyle(
+                            isFailed
+                                ? 'GAGAL (Lewat Tenggat) • Penalti -${quest.goldLost ?? quest.difficulty.penaltyGold} Gold\nWaktu: ${_formatDateTime(quest.finishedAt)}'
+                                : '${quest.difficulty.label} • -${quest.damageDealt ?? quest.difficulty.damage} DMG\nSelesai: ${_formatDateTime(quest.finishedAt)}',
+                            style: TextStyle(
                               fontSize: 11,
-                              color: Colors.white54,
+                              color: isFailed
+                                  ? Colors.redAccent.withValues(alpha: 0.75)
+                                  : Colors.white54,
                             ),
                           ),
                           isThreeLine: true,
