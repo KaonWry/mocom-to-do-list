@@ -2,6 +2,11 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+import 'models/quest.dart';
+import 'services/storage_service.dart';
+export 'models/quest.dart';
+export 'services/storage_service.dart';
+
 void main() {
   runApp(const QuestRouletteApp());
 }
@@ -45,61 +50,6 @@ class BossProfile {
   });
 }
 
-enum QuestDifficulty {
-  easy('Easy (Goblin)', 15, 10, 15, Color(0xFF4CAF50), Icons.shield_outlined),
-  medium(
-    'Medium (Orc)',
-    30,
-    25,
-    25,
-    Color(0xFFFF9800),
-    Icons.local_fire_department,
-  ),
-  hard('Hard (Dragon)', 50, 50, 40, Color(0xFFE63946), Icons.whatshot);
-
-  final String label;
-  final int damage;
-  final int xp;
-  final int penaltyGold;
-  final Color color;
-  final IconData icon;
-
-  const QuestDifficulty(
-    this.label,
-    this.damage,
-    this.xp,
-    this.penaltyGold,
-    this.color,
-    this.icon,
-  );
-}
-
-class Quest {
-  final String id;
-  final String title;
-  final QuestDifficulty difficulty;
-  final DateTime deadline;
-  bool isDone;
-  bool isFailed;
-  DateTime? finishedAt;
-  int? damageDealt;
-  int? goldLost;
-
-  Quest({
-    required this.id,
-    required this.title,
-    required this.difficulty,
-    required this.deadline,
-    this.isDone = false,
-    this.isFailed = false,
-    this.finishedAt,
-    this.damageDealt,
-    this.goldLost,
-  });
-
-  bool get isActive => !isDone && !isFailed;
-}
-
 class MainGameShell extends StatefulWidget {
   const MainGameShell({super.key});
 
@@ -108,8 +58,10 @@ class MainGameShell extends StatefulWidget {
 }
 
 class _MainGameShellState extends State<MainGameShell> {
+  final StorageService _storageService = StorageService();
+  bool _isLoading = true;
   int _selectedTabIndex = 0;
-  late List<Quest> _quests;
+  List<Quest> _quests = [];
 
   // 5 Boss
   final List<BossProfile> _bossRoster = const [
@@ -165,32 +117,58 @@ class _MainGameShellState extends State<MainGameShell> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _quests = [
-      Quest(
-        id: '1',
-        title: 'Rapikan catatan kuliah hari ini',
-        difficulty: QuestDifficulty.easy,
-        deadline: now.add(const Duration(hours: 2)),
-      ),
-      Quest(
-        id: '2',
-        title: 'Kerjakan UI aplikasi To-Do List',
-        difficulty: QuestDifficulty.medium,
-        deadline: now.add(const Duration(hours: 5)),
-      ),
-      Quest(
-        id: '3',
-        title: 'Selesaikan laporan praktikum',
-        difficulty: QuestDifficulty.hard,
-        deadline: now.add(const Duration(days: 1)),
-      ),
-    ];
+    _loadSavedData();
 
     // Timer setiap 1 detik untuk menghitung mundur deadline & cek punishment
     _deadlineTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       _checkDeadlines();
     });
+  }
+
+  Future<void> _loadSavedData() async {
+    final loadedQuests = await _storageService.loadQuests();
+    final loadedState = await _storageService.loadGameState();
+
+    if (!mounted) return;
+    setState(() {
+      _quests = loadedQuests;
+      _playerLevel = loadedState.playerLevel;
+      _playerXp = loadedState.playerXp;
+      _gold = loadedState.gold;
+      _bossLevel = loadedState.bossLevel;
+      _bossCurrentHp = loadedState.bossCurrentHp;
+      _bossMaxHp = loadedState.bossMaxHp;
+      _weaponLevel = loadedState.weaponLevel;
+      _bonusWeaponDamage = loadedState.bonusWeaponDamage;
+      _isRageActive = loadedState.isRageActive;
+      _isWisdomActive = loadedState.isWisdomActive;
+      _lockedQuestId = loadedState.lockedQuestId;
+      _isLoading = false;
+    });
+  }
+
+  void _saveQuests() {
+    if (_isLoading) return;
+    _storageService.saveQuests(_quests);
+  }
+
+  void _saveGameState() {
+    if (_isLoading) return;
+    _storageService.saveGameState(
+      GameStateData(
+        playerLevel: _playerLevel,
+        playerXp: _playerXp,
+        gold: _gold,
+        bossLevel: _bossLevel,
+        bossCurrentHp: _bossCurrentHp,
+        bossMaxHp: _bossMaxHp,
+        weaponLevel: _weaponLevel,
+        bonusWeaponDamage: _bonusWeaponDamage,
+        isRageActive: _isRageActive,
+        isWisdomActive: _isWisdomActive,
+        lockedQuestId: _lockedQuestId,
+      ),
+    );
   }
 
   @override
@@ -210,6 +188,7 @@ class _MainGameShellState extends State<MainGameShell> {
   int get _weaponUpgradeCost => 50 + (_weaponLevel * 35);
 
   void _checkDeadlines() {
+    if (_isLoading) return;
     final now = DateTime.now();
     final expiredQuests = _quests
         .where((q) => q.isActive && now.isAfter(q.deadline))
@@ -240,6 +219,8 @@ class _MainGameShellState extends State<MainGameShell> {
     setState(() {
       _gold = max(0, _gold - totalPenalty);
     });
+    _saveQuests();
+    _saveGameState();
 
     if (!mounted) return;
 
@@ -351,6 +332,7 @@ class _MainGameShellState extends State<MainGameShell> {
       setState(() {
         _lockedQuestId = activeQuests.first.id;
       });
+      _saveGameState();
       _showFeedback('Target dikunci: "${activeQuests.first.title}" (1.5x CRIT!)');
       return;
     }
@@ -390,6 +372,7 @@ class _MainGameShellState extends State<MainGameShell> {
           _lockedQuestId = randomQuest.id;
           _spinningHighlightId = null;
         });
+        _saveGameState();
         _showFeedback(
           'ROULETTE LOCKED: "${randomQuest.title}" (1.5x CRITICAL DMG!)',
         );
@@ -557,6 +540,8 @@ class _MainGameShellState extends State<MainGameShell> {
 
       _bossCurrentHp = max(0, _bossCurrentHp - finalDamage);
     });
+    _saveQuests();
+    _saveGameState();
 
     if (_bossCurrentHp == 0) {
       _handleBossDefeated();
@@ -580,6 +565,7 @@ class _MainGameShellState extends State<MainGameShell> {
       _bossMaxHp = 100 + (_bossLevel - 1) * 40;
       _bossCurrentHp = _bossMaxHp;
     });
+    _saveGameState();
 
     final nextBoss = _currentBoss;
 
@@ -664,6 +650,7 @@ class _MainGameShellState extends State<MainGameShell> {
       _weaponLevel++;
       _bonusWeaponDamage += 5;
     });
+    _saveGameState();
     _showFeedback(
       'Senjata ditingkatkan ke Lv.$_weaponLevel (+$_bonusWeaponDamage Base DMG)!',
     );
@@ -684,6 +671,7 @@ class _MainGameShellState extends State<MainGameShell> {
       _gold -= cost;
       _isRageActive = true;
     });
+    _saveGameState();
     _showFeedback('Rage Potion aktif! Quest berikutnya menghasilkan 2x DMG.');
   }
 
@@ -702,6 +690,7 @@ class _MainGameShellState extends State<MainGameShell> {
       _gold -= cost;
       _isWisdomActive = true;
     });
+    _saveGameState();
     _showFeedback('Wisdom Elixir aktif! Quest berikutnya memberi 2x EXP.');
   }
 
@@ -717,6 +706,7 @@ class _MainGameShellState extends State<MainGameShell> {
       _gold -= cost;
       _bossCurrentHp = max(0, _bossCurrentHp - scrollDamage);
     });
+    _saveGameState();
 
     if (_bossCurrentHp == 0) {
       _handleBossDefeated();
@@ -951,6 +941,7 @@ class _MainGameShellState extends State<MainGameShell> {
                               ),
                             );
                           });
+                          _saveQuests();
                           Navigator.pop(context);
                         },
                         icon: const Icon(Icons.add_task),
@@ -1004,6 +995,17 @@ class _MainGameShellState extends State<MainGameShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF11131A),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFFFB703),
+          ),
+        ),
+      );
+    }
+
     final activeQuests = _quests.where((q) => q.isActive).toList();
     final historyQuests = _quests.where((q) => !q.isActive).toList()
       ..sort(
@@ -1464,6 +1466,8 @@ class _MainGameShellState extends State<MainGameShell> {
                                 }
                                 _quests.removeWhere((q) => q.id == quest.id);
                               });
+                              _saveQuests();
+                              _saveGameState();
                             },
                           ),
                         ),
@@ -1775,6 +1779,7 @@ class _MainGameShellState extends State<MainGameShell> {
                     setState(() {
                       _quests.removeWhere((q) => !q.isActive);
                     });
+                    _saveQuests();
                     _showFeedback('Riwayat quest dibersihkan.');
                   },
                   icon: const Icon(
